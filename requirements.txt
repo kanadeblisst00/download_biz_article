@@ -1,0 +1,6 @@
+fastapi
+playwright
+pydantic
+loguru
+aiofiles
+uvicorn
