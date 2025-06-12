@@ -31,3 +31,4 @@ async def download(options: DownloadPostData, request: Request):
 async def downloads(options: list[DownloadPostData], request: Request):
     for option in options:
         await download(option, request)
+    return Response(status_code=200, content="任务已添加到下载队列")

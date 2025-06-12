@@ -34,7 +34,7 @@ class PlaywrightHtmlManager:
     async def _browser_get(self, page: Page, options: dict) -> dict:
         url = options["url"]
         title = options["title"]
-        nickname = options.get("nickname", "默认路径")
+        nickname = options.get("nickname") or "默认路径"
         pub_time = options["pub_time"]
         save_path = self.chrome_manager.app.state.save_path
         biz_path = os.path.join(save_path, nickname)
@@ -61,8 +61,14 @@ class PlaywrightHtmlManager:
             }
         """)
         await asyncio.sleep(3)  
-        await self._browser_save_pdf(page, filepath, pub_time)
-        await self._browser_save_mhtml(page, filepath, pub_time)
+        download_type = self.chrome_manager.app.state.settings.get("download_type") or "pdf,mhtml,html"
+        download_type = download_type.lower().split(",")
+        if "pdf" in download_type:
+            await self._browser_save_pdf(page, filepath, pub_time)
+        if "mhtml" in download_type:
+            await self._browser_save_mhtml(page, filepath, pub_time)
+        if "html" in download_type:
+            await self._browser_get_html(page, filepath, pub_time)
 
     async def set_file_times(self, path, pub_time):
         if not await aiofiles.ospath.exists(path):
@@ -72,6 +78,36 @@ class PlaywrightHtmlManager:
             os.utime(path, (pub_timestamp, pub_timestamp))
         except Exception as e:
             logger.warning(f"设置文件时间失败: {path}, 错误: {e}")
+
+    def format_html(self, content: str) -> str:
+        if not content:
+            return ""
+        content = content.replace('window.location.protocol', 'https:')
+        content = content.replace('location.protocol', 'https://')
+        content = content.replace('-webkit-user-select:none', '-webkit-user-select:text')
+        content = content.replace('-webkit-user-select: none', '-webkit-user-select:text')
+        content = content.replace('-moz-user-select:none', '-moz-user-select:text')
+        content = content.replace('-ms-user-select:none', '-ms-user-select:text')
+        content = content.replace('user-select:none', 'user-select:text')
+        content = re.sub(r'src="//(.*?)"', r'src="https://\1"', content)
+        content = re.sub(r'url\(//(.*?)\)', r'url\(https://\1\)', content)
+        content = re.sub(r'href="//(.*?)"', r'href="https://\1"', content)
+        return content.strip()
+    
+    async def _browser_get_html(self, page: Page, filepath, pub_time) -> str:
+        try:
+            content = await page.content()
+        except playwright._impl._errors.Error as e:
+            logger.info(f"_browser_get_html Error: {e}")
+            return
+        if not content:
+            logger.info("没有获取到 HTML 内容，可能是页面加载失败或不支持 HTML 格式")
+            return
+        file_path = f"{filepath}.html"
+        logger.info(f"保存 HTML 文件到: {file_path}")
+        async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+            await f.write(self.format_html(content))
+        await self.set_file_times(file_path, pub_time)
 
     async def _browser_save_pdf(self, page: Page, filepath, pub_time) -> str:
         context: BrowserContext = self.chrome_manager._playwright_context
@@ -127,7 +163,11 @@ class PlaywrightHtmlManager:
     def _sanitize_filename(self, filename: str) -> str:
         # 移除或替换 Windows 文件名非法字符以及换行符、制表符等不可见字符
         filename = re.sub(r'[\r\n\t]', '', filename)
-        return re.sub(r'[\\/:*?"<>|]', '_', filename)
+        filename = re.sub(r'[\\/:*?"<>|]', '_', filename)
+        # 限制文件名长度，避免过长导致的问题
+        if len(filename) > 50:
+            filename = filename[:50]
+        return filename.strip()
 
     async def _stop_page_loading(self, page: Page):
         context: BrowserContext = self.chrome_manager._playwright_context

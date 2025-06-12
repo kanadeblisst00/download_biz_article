@@ -52,7 +52,7 @@ def get_lifespan(settings):
         # 从文件恢复未完成的任务到队列
         await load_unfinished_tasks(task_queue)
         app.state.task_queue = task_queue
-        app.state.settings = settings
+        app.state.settings = settings["base"]
         app.state.chrome_manager = ChromeManager(app, settings)
         await app.state.chrome_manager.__aenter__()
         if not settings["base"].get("save_path"):
