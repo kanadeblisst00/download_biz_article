@@ -38,7 +38,7 @@ class ChromeManager:
     def __init__(self, app: FastAPI=None, settings: dict=None):
         self.app = app
         self.headless = {"true": True, "false": False}[settings["base"].get("headless", "false")]
-        self.executable_path = settings.get("chrome_path") or CHROMIUM_EXECUTABLE_PATH
+        self.executable_path = settings["base"].get("chrome_path") or CHROMIUM_EXECUTABLE_PATH
         self._playwright_manager:Playwright = None
         self._playwright_browser:Browser = None
         self._playwright_context:BrowserContext = None
