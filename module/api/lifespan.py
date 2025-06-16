@@ -43,6 +43,7 @@ async def load_unfinished_tasks(task_queue):
                     await task_queue.put(task)
             except Exception as e:
                 print(f"恢复未完成任务时发生错误: {e}")
+        os.remove(unfinished_path)  
 
 def get_lifespan(settings):
     @asynccontextmanager
