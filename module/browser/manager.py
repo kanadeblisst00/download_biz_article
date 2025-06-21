@@ -61,7 +61,7 @@ class PlaywrightHtmlManager:
             }
         """)
         await asyncio.sleep(3)  
-        download_type = self.chrome_manager.app.state.settings["base"].get("download_type") or "pdf,mhtml,html"
+        download_type = self.chrome_manager.app.state.settings.get("download_type") or "pdf,mhtml,html"
         download_type = download_type.lower().split(",")
         if "pdf" in download_type:
             await self._browser_save_pdf(page, filepath, pub_time)
